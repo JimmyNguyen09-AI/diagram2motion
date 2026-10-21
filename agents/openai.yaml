@@ -1,0 +1,4 @@
+interface:
+  display_name: "Diagram to Motion"
+  short_description: "Explain codebases with animated scenario walkthroughs"
+  default_prompt: "Use $diagram-to-motion to inspect this project and build an English execution atlas with source-backed scenarios, animated walkthroughs, and explicit coverage limits."

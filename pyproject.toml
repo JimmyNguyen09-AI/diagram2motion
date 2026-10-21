@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "diagram-to-motion"
+version = "0.3.0"
+description = "Developer-grade interactive architecture and execution walkthrough engine for AI agents and developers."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Jimmy Nguyen" }]
+requires-python = ">=3.10"
+keywords = ["mermaid", "architecture", "animation", "walkthrough", "ai-agent", "developer-tools"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Documentation",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.scripts]
+diagram-to-motion = "scripts.build:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "playwright>=1.40.0",
+]
+
+[tool.setuptools]
+packages = ["scripts"]
+package-dir = {"scripts" = "scripts"}
+
+[tool.setuptools.package-data]
+"*" = ["assets/*", "schema/*"]
+

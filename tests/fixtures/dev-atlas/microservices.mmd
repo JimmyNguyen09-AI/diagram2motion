@@ -1,0 +1,16 @@
+flowchart LR
+    subgraph Client_App ["Client Tier"]
+        web-app["Web Application"]
+    end
+    subgraph Ingress ["API Gateway Tier"]
+        api-gw["API Gateway"]
+        auth-srv["Auth Service"]
+    end
+    subgraph Storage ["Storage Tier"]
+        db[("Postgres Database")]
+        redis[("Redis Cache")]
+    end
+    web-app --> |GET /dashboard| api-gw
+    api-gw --> |verify session| auth-srv
+    api-gw -.-> |check cache| redis
+    api-gw --> |query profile| db

@@ -1,0 +1,144 @@
+{
+  "title": "Microservices Request Flow",
+  "subtitle": "Authenticated dashboard request with caching and database fallback",
+  "language": "en",
+  "assumptions": [
+    "Step durations represent logical order, not actual network latency.",
+    "Database connection pool is pre-warmed."
+  ],
+  "scenarios": [
+    {
+      "id": "cache-hit",
+      "label": "Authenticated Request - Cache Hit",
+      "description": "User profile is retrieved directly from Redis cache without database query.",
+      "preconditions": [
+        "User session token is valid and active in JWT store.",
+        "Profile key exists in Redis cache."
+      ],
+      "outcome": "Profile returned with 200 OK within 15ms.",
+      "steps": [
+        {
+          "edge": "e1",
+          "title": "Client sends HTTP GET request",
+          "detail": "Frontend sends authenticated request with Bearer token to API Gateway.",
+          "kind": "call",
+          "duration_ms": 1200,
+          "predicate": "request.path == '/dashboard' && headers.has('Authorization')",
+          "dev_context": {
+            "protocol": "HTTPS / REST",
+            "headers": {
+              "Authorization": "Bearer eyJhbGciOi...",
+              "X-Request-Id": "req_00192"
+            },
+            "request_payload": {}
+          },
+          "evidence": [
+            "src/client/api.ts:24 · fetchDashboard"
+          ]
+        },
+        {
+          "edge": "e2",
+          "title": "Gateway validates token with Auth Service",
+          "detail": "Gateway proxies token to Auth service for cryptographic signature verification.",
+          "kind": "call",
+          "duration_ms": 1400,
+          "predicate": "token.is_valid() == True",
+          "dev_context": {
+            "protocol": "gRPC / In-Cluster",
+            "request_payload": { "token": "eyJhbGciOi..." },
+            "response_payload": { "valid": true, "user_id": "usr_991" }
+          },
+          "evidence": [
+            "services/auth/validator.py:45 · verify_token"
+          ]
+        },
+        {
+          "edge": "e3",
+          "title": "Query user profile from Redis cache",
+          "detail": "Cache lookup using key 'user:profile:usr_991' returns active cached document.",
+          "kind": "db_query",
+          "duration_ms": 1200,
+          "predicate": "redis.exists('user:profile:usr_991') == 1",
+          "dev_context": {
+            "protocol": "Redis Serialization Protocol (RESP)",
+            "database_operation": "GET user:profile:usr_991",
+            "response_payload": { "id": "usr_991", "name": "Alice", "role": "admin" }
+          },
+          "evidence": [
+            "services/gateway/cache.py:18 · get_cached_profile"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cache-miss",
+      "label": "Cache Miss - Database Query",
+      "description": "Cache miss causes Gateway to query Postgres DB and populate cache.",
+      "preconditions": [
+        "User session token is valid.",
+        "Key expired or missing from Redis."
+      ],
+      "outcome": "Profile retrieved from PostgreSQL, written to Redis, returned 200 OK.",
+      "steps": [
+        {
+          "edge": "e1",
+          "title": "Client sends HTTP GET request",
+          "detail": "Client requests dashboard data.",
+          "kind": "call",
+          "duration_ms": 1200,
+          "predicate": "True",
+          "dev_context": {
+            "protocol": "HTTPS / REST"
+          },
+          "evidence": [
+            "src/client/api.ts:24 · fetchDashboard"
+          ]
+        },
+        {
+          "edge": "e2",
+          "title": "Verify token with Auth Service",
+          "detail": "Auth service acknowledges valid user session.",
+          "kind": "call",
+          "duration_ms": 1200,
+          "predicate": "token.is_valid() == True",
+          "evidence": [
+            "services/auth/validator.py:45 · verify_token"
+          ]
+        },
+        {
+          "edge": "e3",
+          "title": "Redis cache returns nil",
+          "detail": "Cache miss detected for key 'user:profile:usr_991'.",
+          "kind": "db_query",
+          "duration_ms": 1200,
+          "predicate": "redis.get(key) is None",
+          "dev_context": {
+            "protocol": "Redis RESP",
+            "database_operation": "GET user:profile:usr_991",
+            "response_payload": null
+          },
+          "evidence": [
+            "services/gateway/cache.py:22 · get_cached_profile"
+          ]
+        },
+        {
+          "edge": "e4",
+          "title": "Fetch profile from PostgreSQL database",
+          "detail": "Execute indexed query on users table.",
+          "kind": "db_query",
+          "duration_ms": 1600,
+          "predicate": "cache_miss == True",
+          "dev_context": {
+            "protocol": "PostgreSQL Wire Protocol",
+            "database_operation": "SELECT * FROM users WHERE id = 'usr_991' LIMIT 1;",
+            "response_payload": { "id": "usr_991", "name": "Alice", "role": "admin" },
+            "state_mutation": { "cache.populated": true }
+          },
+          "evidence": [
+            "services/gateway/db.py:54 · find_user_by_id"
+          ]
+        }
+      ]
+    }
+  ]
+}

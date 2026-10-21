@@ -1,0 +1,17 @@
+{
+  "title": "Follow the job, end to end.",
+  "subtitle": "One request crosses three participants. Follow the calls, the internal work, and the response back to the client.",
+  "assumptions": ["A simplified synchronous job request: the API waits for the worker result.", "The self-message represents internal processing, not another network call.", "Playback duration is illustrative, not measured latency."],
+  "scenarios": [{
+    "id": "success",
+    "label": "Successful job",
+    "description": "The worker completes the job, and the API returns its result.",
+    "steps": [
+      {"edge": "e1", "title": "Submit the input", "detail": "The client sends a job request to the API."},
+      {"edge": "e2", "title": "Delegate the work", "detail": "The API forwards the job to a worker and waits for the result."},
+      {"edge": "e3", "title": "Process inside the worker", "detail": "The self-message shows local processing. No other participant receives this message."},
+      {"edge": "e4", "title": "Return the job result", "detail": "The worker sends the result back to the API. The dashed arrow preserves the response style in the source."},
+      {"edge": "e5", "title": "Respond to the client", "detail": "The API returns 200 OK with the result. The request is now complete."}
+    ]
+  }]
+}

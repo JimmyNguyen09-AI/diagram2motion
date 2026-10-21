@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+node_modules/
+test-results/
+.test-deps/
+.npm-cache/
+outputs/
+dist/
+build/
+*.egg-info/
+.pytest_cache/

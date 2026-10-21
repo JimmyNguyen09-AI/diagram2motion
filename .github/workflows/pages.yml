@@ -1,0 +1,46 @@
+name: Deploy Demo to GitHub Pages
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build Demo Site
+        run: |
+          mkdir -p dist
+          python scripts/build.py build examples/cache.mmd --story examples/cache.story.json --out dist/demo.html --force
+          python scripts/build.py build examples/sequence.mmd --story examples/sequence.story.json --out dist/sequence-demo.html --force
+          python scripts/atlas.py tests/fixtures/dev-atlas/atlas.json --out dist/atlas --force
+          cp dist/demo.html dist/index.html
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,17 @@
+{
+  "title": "Synthetic Microservices Atlas",
+  "summary": "Source-backed walkthroughs of backend services with caching and database fallback.",
+  "scope": "Static inspection of API gateway, auth, Redis and Postgres tiers.",
+  "limitations": [
+    "Load balancer health checks were omitted.",
+    "TLS handshake is simulated as instantaneous."
+  ],
+  "demos": [
+    {
+      "id": "microservices",
+      "diagram": "microservices.mmd",
+      "story": "microservices.story.json",
+      "summary": "Request flow across API gateway, authentication, Redis cache and PostgreSQL."
+    }
+  ]
+}

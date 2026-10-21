@@ -1,0 +1,104 @@
+{
+  "title": "One request. Two paths.",
+  "subtitle": "Why does the API sometimes query the database, and sometimes skip it? Follow a request to see how a cache changes the execution path.",
+  "language": "en",
+  "positions": {
+    "Client": [
+      150,
+      265
+    ],
+    "API": [
+      450,
+      265
+    ],
+    "Cache": [
+      770,
+      130
+    ],
+    "DB": [
+      770,
+      405
+    ]
+  },
+  "assumptions": [
+    "A teaching model of a read API, not a performance measurement.",
+    "The cache-hit scenario assumes valid cached data. TTL, cache writes and error handling are outside this diagram.",
+    "Steps are sequential. Playback duration is presentation pacing, not latency."
+  ],
+  "scenarios": [
+    {
+      "id": "cache-hit",
+      "label": "Cache hit - data already exists",
+      "description": "The cache contains the requested value. The API can respond without querying the database.",
+      "steps": [
+        {
+          "edge": "e1",
+          "title": "The client sends a request",
+          "detail": "The client requests the product list. The API identifies the cache key.",
+          "duration_ms": 2400
+        },
+        {
+          "edge": "e2",
+          "title": "The API checks the cache",
+          "detail": "The API looks up the key before deciding whether to query the database.",
+          "duration_ms": 2400
+        },
+        {
+          "edge": "e3",
+          "title": "The cache returns a value",
+          "detail": "The key exists and is assumed valid. The API uses this value and skips the database path.",
+          "duration_ms": 2600
+        },
+        {
+          "edge": "e6",
+          "title": "Return the response",
+          "detail": "The API sends 200 OK. Switch to Cache miss to see the additional messages.",
+          "duration_ms": 2600
+        }
+      ]
+    },
+    {
+      "id": "cache-miss",
+      "label": "Cache miss - read the database",
+      "description": "The cache has no value. The API must retrieve the data from the database.",
+      "steps": [
+        {
+          "edge": "e1",
+          "title": "The same request arrives",
+          "detail": "The client still sends GET /products. The difference is the cache contents.",
+          "duration_ms": 2200
+        },
+        {
+          "edge": "e2",
+          "title": "The API checks the cache",
+          "detail": "The same key is looked up. No database query has been made yet.",
+          "duration_ms": 2200
+        },
+        {
+          "edge": "e3",
+          "title": "The cache reports a miss",
+          "detail": "The lookup returns not found. A cache miss is not necessarily a system error.",
+          "duration_ms": 2600
+        },
+        {
+          "edge": "e4",
+          "title": "Query the database",
+          "detail": "Without a cached value, the API reads the primary data source.",
+          "duration_ms": 2600
+        },
+        {
+          "edge": "e5",
+          "title": "The database returns rows",
+          "detail": "The database returns product rows. Cache population is outside this teaching model.",
+          "duration_ms": 2600
+        },
+        {
+          "edge": "e6",
+          "title": "Complete the request",
+          "detail": "The client receives 200 OK, after two additional messages to and from the database.",
+          "duration_ms": 2600
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+flowchart LR
+    Client(Client)
+    API[API service]
+    Cache[Cache]
+    DB[Database]
+    Client -->|GET /products| API
+    API -->|lookup key| Cache
+    Cache -.->|value / not found| API
+    API -->|SELECT products| DB
+    DB -.->|rows| API
+    API -.->|200 OK| Client

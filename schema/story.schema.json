@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diagram-to-motion.dev/schemas/story.schema.json",
+  "title": "Diagram-to-Motion Story Schema",
+  "description": "Narrated scenario specification and developer execution walkthrough data.",
+  "type": "object",
+  "required": ["title", "scenarios"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Title of the walkthrough."
+    },
+    "subtitle": {
+      "type": "string",
+      "description": "Short explanation or context."
+    },
+    "language": {
+      "type": "string",
+      "default": "en",
+      "description": "Language code for the document."
+    },
+    "assumptions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Engineering assumptions or teaching disclosures."
+    },
+    "positions": {
+      "type": "object",
+      "description": "Optional manual [x,y] coordinates per node ID.",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "number" },
+        "minItems": 2,
+        "maxItems": 2
+      }
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "steps"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Unique slug for this scenario (e.g. success, cache-miss, auth-error)."
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Human-readable scenario title."
+          },
+          "description": {
+            "type": "string",
+            "description": "Summary of what this execution branch accomplishes."
+          },
+          "preconditions": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "description": "State assumptions or request prerequisites."
+          },
+          "outcome": {
+            "type": "string",
+            "description": "Terminal outcome or state at the end of the scenario."
+          },
+          "graph": {
+            "$ref": "graph.schema.json",
+            "description": "Optional scenario-specific graph override."
+          },
+          "steps": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["edge", "title", "detail"],
+              "properties": {
+                "edge": {
+                  "type": "string",
+                  "description": "ID of the edge traversed in this step."
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Concise step title."
+                },
+                "detail": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Detailed developer explanation of the mechanism."
+                },
+                "duration_ms": {
+                  "type": "integer",
+                  "minimum": 300,
+                  "maximum": 15000,
+                  "default": 1800,
+                  "description": "Pacing duration in milliseconds."
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "call", "return", "decision", "retry", "parallel", "persist",
+                    "stream", "failure", "db_query", "mcp_tool", "event_publish", "error"
+                  ],
+                  "default": "call",
+                  "description": "Semantic kind of step for developer classification."
+                },
+                "predicate": {
+                  "type": "string",
+                  "description": "Exact code predicate or condition selecting this branch (e.g. is_admin == True)."
+                },
+                "dev_context": {
+                  "type": "object",
+                  "description": "Developer-centric telemetry, payloads, and state mutations.",
+                  "properties": {
+                    "protocol": {
+                      "type": "string",
+                      "description": "Communication protocol (e.g. REST, gRPC, WebSocket, SQL, Redis Wire)."
+                    },
+                    "request_payload": {
+                      "description": "Request body, arguments, or message data."
+                    },
+                    "response_payload": {
+                      "description": "Returned response data, status, or acknowledgment."
+                    },
+                    "database_operation": {
+                      "type": "string",
+                      "description": "Exact SQL query, ORM method, or Redis command."
+                    },
+                    "state_mutation": {
+                      "type": "object",
+                      "description": "Key-value changes to state/session/cache."
+                    },
+                    "headers": {
+                      "type": "object",
+                      "description": "Relevant HTTP or protocol headers."
+                    },
+                    "error_details": {
+                      "type": "object",
+                      "description": "Exception type, error code, or stacktrace if step represents a failure."
+                    }
+                  }
+                },
+                "evidence": {
+                  "type": "array",
+                  "description": "Source code references proving this step.",
+                  "items": {
+                    "oneOf": [
+                      { "type": "string", "minLength": 1 },
+                      {
+                        "type": "object",
+                        "required": ["file", "symbol"],
+                        "properties": {
+                          "file": { "type": "string" },
+                          "line_start": { "type": "integer" },
+                          "line_end": { "type": "integer" },
+                          "symbol": { "type": "string" },
+                          "code_snippet": { "type": "string" }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

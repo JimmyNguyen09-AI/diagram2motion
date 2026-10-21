@@ -1,0 +1,9 @@
+sequenceDiagram
+    actor Client as Client
+    participant API as API service
+    participant Worker as Worker
+    Client->>API: POST /jobs
+    API->>Worker: Submit job
+    Worker->>Worker: Process input
+    Worker-->>API: Job result
+    API-->>Client: 200 OK + result

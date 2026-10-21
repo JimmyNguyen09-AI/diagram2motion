@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Set up Node.js for Browser Checks
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run Python Unit Tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Install Playwright & Test Dependencies
+        run: |
+          npm ci || npm install
+          npx playwright install --with-deps chromium
+
+      - name: Build Demo Artifacts
+        run: |
+          python scripts/build.py build examples/cache.mmd --story examples/cache.story.json --out demo.html --force
+          python scripts/build.py build examples/sequence.mmd --story examples/sequence.story.json --out sequence-demo.html --force
+          python scripts/atlas.py tests/fixtures/dev-atlas/atlas.json --out tests/fixtures/dev-atlas/site --force
+
+      - name: Run Browser Automated Tests
+        run: npm run test:browser
