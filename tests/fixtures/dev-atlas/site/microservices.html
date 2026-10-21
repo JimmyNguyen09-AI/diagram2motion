@@ -88,6 +88,7 @@ const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 const svg=$('diagram'), edgeViews=new Map(), nodeViews=new Map();
 let scenarioIndex=0,index=-1,playing=false,finished=false,elapsed=0,lastTime=0,raf=0;
 let voiceEnabled=false, activeTab='narrative', isDark=true;
+let isVoiceSpeaking=false, voiceHoldEndTime=0, currentUtterance=null;
 const scenario=()=>story.scenarios[scenarioIndex];
 function el(tag,attrs={},text){const n=document.createElementNS(NS,tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,v);if(text!==undefined)n.textContent=text;return n;}
 function add(parent,tag,attrs,text){const n=el(tag,attrs,text);parent.append(n);return n;}
@@ -152,6 +153,8 @@ $('tts-btn')?.addEventListener('click', () => {
   $('tts-btn').textContent = voiceEnabled ? '🔊 Voice On' : '🔇 Voice Off';
   if (!voiceEnabled && window.speechSynthesis) {
     window.speechSynthesis.cancel();
+    isVoiceSpeaking = false;
+    voiceHoldEndTime = 0;
   } else if (voiceEnabled && window.speechSynthesis) {
     const s = scenario();
     if (index >= 0 && s.steps[index]) {
@@ -384,36 +387,97 @@ function update(){
 
   if(voiceEnabled && step && window.speechSynthesis){
     window.speechSynthesis.cancel();
+    isVoiceSpeaking = true;
+    voiceHoldEndTime = 0;
     // Normalize speech text: format punctuation for natural pauses
     const rawDetail = (step.detail || '').replace(/[_\/]/g, ' ');
     const textToSpeak = `${step.title}. ${rawDetail}`;
     const u = new SpeechSynthesisUtterance(textToSpeak);
+    currentUtterance = u;
     const targetLang = story.language || 'en-US';
     u.lang = targetLang.includes('-') ? targetLang : (targetLang === 'en' ? 'en-US' : targetLang);
     const voice = selectVoice(u.lang);
     if (voice) u.voice = voice;
     u.rate = 0.95;
     u.pitch = 1.0;
+
+    u.onend = () => {
+      isVoiceSpeaking = false;
+      voiceHoldEndTime = performance.now() + 450; // Natural 450ms breathing room before next node
+    };
+    u.onerror = () => {
+      isVoiceSpeaking = false;
+      voiceHoldEndTime = 0;
+    };
+
+    // Safety timeout in case browser drops the onend event
+    const safetyTimeoutMs = Math.max(step.duration_ms || 1800, (textToSpeak.length / 10) * 1000 + 4000);
+    setTimeout(() => {
+      if (isVoiceSpeaking && currentUtterance === u) {
+        isVoiceSpeaking = false;
+        voiceHoldEndTime = 0;
+      }
+    }, safetyTimeoutMs);
+
     window.speechSynthesis.speak(u);
+  } else if (!step && window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+    isVoiceSpeaking = false;
+    voiceHoldEndTime = 0;
   }
 }
-function pause(){playing=false;cancelAnimationFrame(raf);lastTime=0;update();}
-function seek(i){playing=false;finished=false;cancelAnimationFrame(raf);lastTime=0;elapsed=0;index=Math.max(-1,Math.min(i,scenario().steps.length-1));update();}
+function pause(){
+  playing=false;
+  isVoiceSpeaking=false;
+  voiceHoldEndTime=0;
+  cancelAnimationFrame(raf);
+  lastTime=0;
+  if(window.speechSynthesis) window.speechSynthesis.cancel();
+  update();
+}
+function seek(i){
+  playing=false;
+  finished=false;
+  isVoiceSpeaking=false;
+  voiceHoldEndTime=0;
+  cancelAnimationFrame(raf);
+  lastTime=0;
+  elapsed=0;
+  if(window.speechSynthesis) window.speechSynthesis.cancel();
+  index=Math.max(-1,Math.min(i,scenario().steps.length-1));
+  update();
+}
 function animate(now){
   if(!playing)return;
   if(lastTime)elapsed+=(now-lastTime)*Number($('speed').value);
   lastTime=now;
-  const step=scenario().steps[index],duration=step.duration_ms||1800;
-  if(elapsed>=duration){
+  const step=scenario().steps[index],duration=step?(step.duration_ms||1800):1800;
+  // If voice is enabled, wait until voice finishes reading and holding before advancing to next step
+  const voicePending = voiceEnabled && (isVoiceSpeaking || (voiceHoldEndTime > 0 && now < voiceHoldEndTime));
+  if(elapsed>=duration && !voicePending){
     if(index===scenario().steps.length-1){finished=true;pause();return;}
     index++;elapsed=0;update();
   }
-  const activeStep=scenario().steps[index],path=edgeViews.get(activeStep.edge).path;
-  if(!reduced.matches){const fraction=Math.min(1,elapsed/(activeStep.duration_ms||1800));const p=path.getPointAtLength(path.getTotalLength()*fraction);dot.setAttribute('cx',p.x);dot.setAttribute('cy',p.y);}
+  const activeStep=scenario().steps[index];
+  if(activeStep && edgeViews.has(activeStep.edge)){
+    const path=edgeViews.get(activeStep.edge).path;
+    if(!reduced.matches){
+      const fraction=Math.min(1,elapsed/(activeStep.duration_ms||1800));
+      const p=path.getPointAtLength(path.getTotalLength()*fraction);
+      dot.setAttribute('cx',p.x);
+      dot.setAttribute('cy',p.y);
+    }
+  }
   raf=requestAnimationFrame(animate);
 }
 function toggle(){if(playing){pause();return;}if(index<0||finished){index=0;elapsed=0;}finished=false;playing=true;lastTime=0;update();raf=requestAnimationFrame(animate);}
-function chooseScenario(){pause();scenarioIndex=Number($('scenario').value);index=-1;elapsed=0;finished=false;graph=scenario().graph||baseGraph;drawGraph();text('scenario-description',scenario().description||'');text('diagram-name',sequence?'Sequence · message order':'Execution stages · grouped calls');$('conditions').replaceChildren();for(const condition of scenario().preconditions||[]){const li=document.createElement('li');li.textContent=condition;$('conditions').append(li);}text('outcome',scenario().outcome?`Outcome: ${scenario().outcome}`:'');$('contract').hidden=!(scenario().preconditions?.length||scenario().outcome);renderTimeline();update();}
+function chooseScenario(){
+  pause();
+  isVoiceSpeaking=false;
+  voiceHoldEndTime=0;
+  if(window.speechSynthesis) window.speechSynthesis.cancel();
+  scenarioIndex=Number($('scenario').value);index=-1;elapsed=0;finished=false;graph=scenario().graph||baseGraph;drawGraph();text('scenario-description',scenario().description||'');text('diagram-name',sequence?'Sequence · message order':'Execution stages · grouped calls');$('conditions').replaceChildren();for(const condition of scenario().preconditions||[]){const li=document.createElement('li');li.textContent=condition;$('conditions').append(li);}text('outcome',scenario().outcome?`Outcome: ${scenario().outcome}`:'');$('contract').hidden=!(scenario().preconditions?.length||scenario().outcome);renderTimeline();update();
+}
 $('play').addEventListener('click',toggle);$('prev').addEventListener('click',()=>seek(index-1));$('next').addEventListener('click',()=>seek(index+1));$('reset').addEventListener('click',()=>seek(-1));$('scrub').addEventListener('input',e=>seek(Number(e.target.value)-1));$('scenario').addEventListener('change',chooseScenario);
 document.addEventListener('keydown',e=>{if(e.target.closest('button,input,select,textarea,summary')||e.target.isContentEditable)return;if(e.code==='Space'){e.preventDefault();toggle();}if(e.code==='ArrowRight'){e.preventDefault();seek(index+1);}if(e.code==='ArrowLeft'){e.preventDefault();seek(index-1);}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&playing)pause();});
