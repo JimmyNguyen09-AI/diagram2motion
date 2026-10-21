@@ -123,11 +123,41 @@ $('theme-btn')?.addEventListener('click', () => {
   update();
 });
 
-// Voice TTS toggle
+// Voice TTS setup with intelligent language and voice detection
+let availableVoices = [];
+function populateVoices() {
+  if (typeof window !== 'undefined' && window.speechSynthesis) {
+    availableVoices = window.speechSynthesis.getVoices() || [];
+  }
+}
+if (typeof window !== 'undefined' && window.speechSynthesis) {
+  populateVoices();
+  if (window.speechSynthesis.onvoiceschanged !== undefined) {
+    window.speechSynthesis.onvoiceschanged = populateVoices;
+  }
+}
+
+function selectVoice(targetLang) {
+  if (!availableVoices.length) populateVoices();
+  const lang = (targetLang || story.language || 'en').toLowerCase().trim();
+  const prefix = lang.slice(0, 2);
+  const matching = availableVoices.filter(v => v.lang && v.lang.toLowerCase().startsWith(prefix));
+  // Prefer natural, neural, or standard crisp English/target voices over distorted fallback
+  const preferred = matching.find(v => /google|natural|neural|samantha|david|zira|jenny/i.test(v.name)) || matching[0];
+  return preferred || null;
+}
+
 $('tts-btn')?.addEventListener('click', () => {
   voiceEnabled = !voiceEnabled;
   $('tts-btn').textContent = voiceEnabled ? '🔊 Voice On' : '🔇 Voice Off';
-  if (!voiceEnabled && window.speechSynthesis) window.speechSynthesis.cancel();
+  if (!voiceEnabled && window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  } else if (voiceEnabled && window.speechSynthesis) {
+    const s = scenario();
+    if (index >= 0 && s.steps[index]) {
+      update();
+    }
+  }
 });
 
 // Pan & Zoom logic
@@ -352,10 +382,18 @@ function update(){
   $('prev').disabled=index<0;$('next').disabled=index>=s.steps.length-1;
   dot?.setAttribute('visibility',playing&&!reduced.matches?'visible':'hidden');
 
-  if(voiceEnabled&&step&&window.speechSynthesis){
+  if(voiceEnabled && step && window.speechSynthesis){
     window.speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(step.title+'. '+step.detail);
-    u.rate=1;
+    // Normalize speech text: format punctuation for natural pauses
+    const rawDetail = (step.detail || '').replace(/[_\/]/g, ' ');
+    const textToSpeak = `${step.title}. ${rawDetail}`;
+    const u = new SpeechSynthesisUtterance(textToSpeak);
+    const targetLang = story.language || 'en-US';
+    u.lang = targetLang.includes('-') ? targetLang : (targetLang === 'en' ? 'en-US' : targetLang);
+    const voice = selectVoice(u.lang);
+    if (voice) u.voice = voice;
+    u.rate = 0.95;
+    u.pitch = 1.0;
     window.speechSynthesis.speak(u);
   }
 }

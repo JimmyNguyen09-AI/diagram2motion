@@ -1,6 +1,7 @@
 # Diagram to Motion
 
 [![CI](https://github.com/JimmyNguyen09-AI/diagram2motion/actions/workflows/ci.yml/badge.svg)](https://github.com/JimmyNguyen09-AI/diagram2motion/actions/workflows/ci.yml)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-brightgreen?logo=githubpages&logoColor=white)](https://jimmynguyen09-ai.github.io/diagram2motion/)
 [![Python Version](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -8,7 +9,7 @@
 
 A portable agent skill and CLI for interactive, animated architecture and runtime walkthroughs. Mermaid in; a standalone offline HTML file out. Explore request routes, inspect data payloads, SQL queries, and branch conditions step by step.
 
-**Try it:** open [`demo.html`](demo.html) for cache hit/miss or [`sequence-demo.html`](sequence-demo.html) for a sequence walkthrough. Explore the [Synthetic Microservices Atlas](tests/fixtures/dev-atlas/site/index.html).
+**Try it online:** [Live Interactive Walkthrough (GitHub Pages)](https://jimmynguyen09-ai.github.io/diagram2motion/) or inspect local [`demo.html`](demo.html) and [`sequence-demo.html`](sequence-demo.html). Explore the [Synthetic Microservices Atlas](tests/fixtures/dev-atlas/site/index.html).
 
 ---
 
